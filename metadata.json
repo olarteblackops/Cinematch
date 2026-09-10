@@ -1,0 +1,6 @@
+{
+  "name": "CineMatch AI",
+  "description": "Plataforma de streaming inteligente con búsqueda en TMDB, trailers, gestión de favoritos y recomendaciones personalizadas con Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

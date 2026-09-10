@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CineMatch AI</title>
+  <meta name="description" content="Plataforma de streaming inteligente con búsqueda en TMDB, trailers, gestión de favoritos y recomendaciones personalizadas con Gemini AI." />
+  <meta property="og:title" content="CineMatch AI" />
+  <meta property="og:description" content="Plataforma de streaming inteligente con búsqueda en TMDB, trailers, gestión de favoritos y recomendaciones personalizadas con Gemini AI." />
+  <meta property="og:type" content="website" />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              red: '#E50914',
+              hoverRed: '#B81D24',
+              gold: '#F59E0B',
+              dark: '#0F172A',
+              card: '#1E293B',
+              cardHover: '#283548'
+            }
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.25s ease-out',
+            'pulse-slow': 'pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(6px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- FontAwesome Icons for clean streaming UI -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .aspect-poster {
+      aspect-ratio: 2 / 3;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col antialiased selection:bg-brand-red selection:text-white">
+
+  <!-- ================= TOP HEADER ================= -->
+  <header id="main-header" class="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-md border-b border-gray-800 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-20">
+        
+        <!-- Logo & Brand -->
+        <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('search')">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-brand-red to-amber-500 flex items-center justify-center shadow-lg shadow-brand-red/20 text-white text-xl font-black">
+            🎬
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-2xl font-extrabold tracking-tight text-white">CineMatch<span class="text-brand-red">.AI</span></span>
+              <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-gray-800 text-amber-400 border border-amber-500/30 rounded-full">Pro</span>
+            </div>
+            <p class="text-xs text-gray-400 hidden sm:block">Streaming Explorer & Cinephile Gemini</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav id="nav-tabs" class="flex items-center gap-1 sm:gap-2 bg-gray-800/80 p-1.5 rounded-xl border border-gray-700/60 text-sm font-medium">
+          <button id="tab-btn-search" onclick="switchTab('search')" class="tab-btn active-tab flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-200 text-white bg-brand-red shadow">
+            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+            <span>Buscar Películas</span>
+          </button>
+
+          <button id="tab-btn-favorites" onclick="switchTab('favorites')" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-200 text-gray-400 hover:text-white hover:bg-gray-700/50">
+            <i class="fa-solid fa-heart text-xs text-rose-500"></i>
+            <span>Mis Favoritos</span>
+            <span id="favorites-badge" class="ml-0.5 px-1.5 py-0.2 text-xs font-bold rounded-full bg-gray-700 text-gray-200">0</span>
+          </button>
+
+          <button id="tab-btn-recommender" onclick="switchTab('recommender')" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-200 text-gray-400 hover:text-white hover:bg-gray-700/50">
+            <i class="fa-solid fa-wand-magic-sparkles text-xs text-amber-400"></i>
+            <span>Recomendador IA</span>
+          </button>
+        </nav>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- ================= SECTION 1: SEARCH & EXPLORE ================= -->
+    <section id="section-search" class="space-y-8 animate-fade-in">
+      
+      <!-- Hero & Search Box -->
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border border-gray-800 p-6 sm:p-10 shadow-2xl">
+        <div class="relative z-10 max-w-2xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-red/10 border border-brand-red/30 text-brand-red text-xs font-semibold mb-3">
+            <i class="fa-solid fa-film"></i> Base de datos TMDB en tiempo real
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
+            Encuentra tu próxima película favorita
+          </h1>
+          <p class="text-gray-400 text-sm sm:text-base mb-6">
+            Explora millones de títulos, mira tráilers en HD, consulta reparto oficial y gestiona tus títulos predilectos.
+          </p>
+
+          <!-- Search Input Form -->
+          <form id="search-form" onsubmit="handleSearch(event)" class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-grow">
+              <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <input
+                type="text"
+                id="search-input"
+                placeholder="Escribe el título de una película (ej. Inception, Avatar, Barbie)..."
+                class="w-full pl-11 pr-10 py-3.5 rounded-xl bg-gray-950 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent transition text-sm"
+                autocomplete="off"
+              />
+              <button
+                type="button"
+                id="clear-search-btn"
+                onclick="clearSearchInput()"
+                class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1"
+                title="Borrar texto"
+              >
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <button
+              type="submit"
+              id="search-btn"
+              class="px-7 py-3.5 rounded-xl bg-brand-red hover:bg-brand-hoverRed text-white font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 active:scale-95"
+            >
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <span>Buscar</span>
+            </button>
+          </form>
+
+          <!-- Quick Discovery Chips -->
+          <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+            <span class="font-medium text-gray-400">Atajos rápidos:</span>
+            <button onclick="quickSearch('Spider-Man')" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">Spider-Man</button>
+            <button onclick="quickSearch('Dune')" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">Dune</button>
+            <button onclick="quickSearch('Oppenheimer')" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">Oppenheimer</button>
+            <button onclick="quickSearch('Avengers')" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">Avengers</button>
+            <button onclick="loadTrendingMovies()" class="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition">🔥 Más Populares</button>
+          </div>
+        </div>
+
+        <!-- Decorative background glow -->
+        <div class="absolute -right-10 -bottom-10 w-96 h-96 bg-brand-red/10 rounded-full blur-3xl pointer-events-none"></div>
+      </div>
+
+      <!-- Section Title & Results Counter -->
+      <div class="flex items-center justify-between border-b border-gray-800 pb-4">
+        <div>
+          <h2 id="catalog-title" class="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+            <span>🔥 Tendencias y Populares</span>
+          </h2>
+          <p id="catalog-subtitle" class="text-xs sm:text-sm text-gray-400">Títulos destacados de la semana en la cartelera mundial</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="loadTrendingMovies()" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-lg border border-gray-700 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-rotate"></i>
+            <span>Refrescar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Status Notice / Feedback Banner -->
+      <div id="search-status-message" class="hidden rounded-xl p-4 text-sm font-medium border"></div>
+
+      <!-- Movies Grid -->
+      <div id="movies-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+        <!-- Injected dynamically -->
+      </div>
+
+    </section>
+
+    <!-- ================= SECTION 2: FAVORITES ================= -->
+    <section id="section-favorites" class="space-y-8 hidden animate-fade-in">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-5">
+        <div>
+          <div class="flex items-center gap-3">
+            <h2 class="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-heart text-brand-red"></i>
+              <span>Mis Películas Favoritas</span>
+            </h2>
+            <span id="favorites-count-pill" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-brand-red/20 text-brand-red border border-brand-red/40">0 guardadas</span>
+          </div>
+          <p class="text-sm text-gray-400 mt-1">Colección guardada de forma persistente en tu navegador.</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            id="clear-all-favs-btn"
+            onclick="confirmClearAllFavorites()"
+            class="hidden text-xs bg-gray-800 hover:bg-rose-900/40 text-gray-300 hover:text-rose-300 border border-gray-700 hover:border-rose-700/50 px-3 py-2 rounded-xl transition items-center gap-1.5"
+          >
+            <i class="fa-solid fa-trash-can"></i>
+            <span>Vaciar Favoritos</span>
+          </button>
+          <button onclick="switchTab('search')" class="text-xs bg-brand-red hover:bg-brand-hoverRed text-white px-3 py-2 rounded-xl transition flex items-center gap-1.5 font-medium shadow">
+            <i class="fa-solid fa-plus"></i>
+            <span>Explorar Más</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Favorites Grid -->
+      <div id="favorites-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+        <!-- Injected dynamically -->
+      </div>
+
+      <!-- Empty State for Favorites -->
+      <div id="favorites-empty-state" class="hidden py-16 text-center max-w-md mx-auto space-y-4">
+        <div class="w-20 h-20 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center mx-auto text-3xl text-gray-500">
+          <i class="fa-regular fa-heart"></i>
+        </div>
+        <h3 class="text-xl font-bold text-white">Tu lista de favoritos está vacía</h3>
+        <p class="text-sm text-gray-400 leading-relaxed">
+          Haz clic en el icono del corazón ❤️ en cualquier película de la cartelera o en el modal para guardarla aquí y revisarla cuando quieras.
+        </p>
+        <button
+          onclick="switchTab('search')"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-red hover:bg-brand-hoverRed text-white font-semibold text-sm transition shadow-lg shadow-brand-red/20"
+        >
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Explorar Películas Ahora</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ================= SECTION 3: GEMINI AI RECOMMENDER ================= -->
+    <section id="section-recommender" class="space-y-8 hidden animate-fade-in">
+      
+      <!-- AI Header Card -->
+      <div class="rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-indigo-950/40 border border-indigo-500/20 p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+        <div class="relative z-10 max-w-3xl space-y-4">
+          
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-semibold">
+            <i class="fa-solid fa-robot"></i> Google Gemini AI Movie Advisor
+          </div>
+
+          <h2 class="text-3xl sm:text-4xl font-black tracking-tight text-white">
+            "¿Qué debería ver hoy?"
+          </h2>
+
+          <p class="text-gray-300 text-sm sm:text-base leading-relaxed">
+            Describe con tus propias palabras tu estado de ánimo, lo que te apetece sentir, o cómo ha ido tu día. Nuestro crítico de cine con IA analizará la lista de películas disponibles y te dará su recomendación experta y fundamentada.
+          </p>
+
+          <!-- Prompt Area -->
+          <div class="space-y-3 pt-2">
+            <label for="ai-mood-input" class="block text-xs font-bold uppercase tracking-wider text-gray-400">
+              ¿Cómo te sientes o qué tipo de experiencia buscas?
+            </label>
+            
+            <textarea
+              id="ai-mood-input"
+              rows="3"
+              placeholder="Ejemplo: Estoy cansado después de un día difícil de trabajo y quiero una comedia ligera, divertida y reconfortante que me saque unas risas..."
+              class="w-full p-4 rounded-xl bg-gray-950/90 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm leading-relaxed"
+            ></textarea>
+
+            <!-- Quick Mood Pills -->
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <span class="text-gray-400 font-medium">Ideas rápidas:</span>
+              <button onclick="setMoodText('Estoy agotado y busco una comedia ligera o aventura para desconectar y reírme')" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-indigo-200 border border-gray-700 transition">😴 Cansado y desconexión</button>
+              <button onclick="setMoodText('Tengo ganas de un thriller psicológico intrigante con giros inesperados de guion')" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-indigo-200 border border-gray-700 transition">🧠 Misterio & Tensión</button>
+              <button onclick="setMoodText('Noche de pareja: busco romance, emoción genuina y buena química entre los protagonistas')" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-indigo-200 border border-gray-700 transition">🍷 Romance & Sentimiento</button>
+              <button onclick="setMoodText('Quiero adrenalina pura, acción trepidante y efectos visuales espectaculares')" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-indigo-200 border border-gray-700 transition">💥 Acción desenfrenada</button>
+            </div>
+
+            <!-- Submit Button & Options -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3">
+              <div class="text-xs text-gray-400 flex items-center gap-2">
+                <i class="fa-solid fa-database text-indigo-400"></i>
+                <span id="ai-context-count">Analizando el catálogo actual (20 películas)</span>
+              </div>
+
+              <button
+                id="ai-analyze-btn"
+                onclick="analyzeWithGemini()"
+                class="px-7 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2.5 shadow-lg shadow-indigo-600/30 active:scale-95 cursor-pointer"
+              >
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>Analizar con IA</span>
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Decorative background glow -->
+        <div class="absolute right-0 top-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      </div>
+
+      <!-- AI Response Container -->
+      <div id="ai-result-card" class="hidden rounded-2xl bg-gray-800/90 border border-indigo-500/30 p-6 sm:p-8 shadow-2xl animate-fade-in space-y-6">
+        <div class="flex items-center justify-between border-b border-gray-700/60 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-comment-dots"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">Veredicto de tu Crítico CineMatch AI</h3>
+              <p class="text-xs text-gray-400">Recomendación personalizada basada en tu estado anímico</p>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            Gemini 1.5 Flash
+          </span>
+        </div>
+
+        <!-- The AI recommendation paragraph -->
+        <div id="ai-response-text" class="text-gray-200 text-base sm:text-lg leading-relaxed space-y-3 font-normal">
+          <!-- Text inserted dynamically -->
+        </div>
+
+        <!-- Recommended Movie Quick View Card (if identified in current list) -->
+        <div id="ai-recommended-movie-box" class="hidden mt-6 p-4 rounded-xl bg-gray-900/80 border border-gray-700/80 flex flex-col sm:flex-row items-center gap-4">
+          <!-- Dynamically filled -->
+        </div>
+      </div>
+
+      <!-- Loading State for AI -->
+      <div id="ai-loading" class="hidden py-16 text-center space-y-4">
+        <div class="relative w-16 h-16 mx-auto">
+          <div class="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+          <i class="fa-solid fa-robot absolute inset-0 m-auto text-indigo-400 text-lg"></i>
+        </div>
+        <h4 class="text-lg font-bold text-white">Consultando al crítico de cine con Gemini AI...</h4>
+        <p class="text-sm text-gray-400 max-w-sm mx-auto">
+          Evaluando títulos, sinopsis y géneros para darte el veredicto perfecto.
+        </p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= MODAL: DETAILS, CAST & TRAILER ================= -->
+  <div
+    id="movie-modal"
+    class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-3 sm:p-6 overflow-y-auto transition-opacity"
+    onclick="handleModalBackdropClick(event)"
+  >
+    <div
+      id="modal-content-container"
+      class="relative w-full max-w-4xl bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col animate-fade-in"
+      onclick="event.stopPropagation()"
+    >
+      <!-- Modal Header Bar -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-950/60 sticky top-0 z-20">
+        <div class="flex items-center gap-2 truncate pr-4">
+          <span class="text-brand-red text-lg">🎬</span>
+          <h3 id="modal-movie-title" class="text-lg sm:text-xl font-bold text-white truncate">Detalles de la Película</h3>
+        </div>
+        <button
+          onclick="closeMovieModal()"
+          class="w-9 h-9 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center transition"
+          title="Cerrar (Esc)"
+        >
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div id="modal-body-scroll" class="overflow-y-auto p-6 space-y-6 flex-grow">
+        
+        <!-- Video Trailer Container -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+              <i class="fa-brands fa-youtube text-red-500"></i>
+              <span>Tráiler Oficial</span>
+            </h4>
+            <div id="trailer-link-container"></div>
+          </div>
+
+          <!-- Video Player Box -->
+          <div id="trailer-player-wrapper" class="relative w-full aspect-video rounded-xl bg-gray-950 overflow-hidden border border-gray-800 shadow-inner flex items-center justify-center">
+            <!-- Iframe injected dynamically -->
+          </div>
+        </div>
+
+        <!-- Movie Header Overview & Info -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+          
+          <!-- Poster in Modal -->
+          <div class="md:col-span-1 hidden md:block rounded-xl overflow-hidden shadow-lg border border-gray-800 aspect-poster bg-gray-950 relative">
+            <img id="modal-poster-img" src="" alt="Póster" class="w-full h-full object-cover" />
+          </div>
+
+          <!-- Synopsis & Meta Details -->
+          <div class="md:col-span-3 space-y-4">
+            
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <span id="modal-release-year" class="px-2.5 py-1 rounded-md bg-gray-800 text-gray-300 font-semibold">2024</span>
+              <span id="modal-runtime" class="px-2.5 py-1 rounded-md bg-gray-800 text-gray-300 font-medium">120 min</span>
+              <div id="modal-rating-badge" class="px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold flex items-center gap-1">
+                ⭐ <span id="modal-vote-score">8.5</span>/10
+              </div>
+              <div id="modal-genres" class="flex flex-wrap gap-1.5">
+                <!-- Genres pills -->
+              </div>
+            </div>
+
+            <!-- Tagline if any -->
+            <p id="modal-tagline" class="text-xs sm:text-sm italic text-gray-400"></p>
+
+            <!-- Overview -->
+            <div>
+              <h5 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Sinopsis</h5>
+              <p id="modal-overview" class="text-sm sm:text-base text-gray-200 leading-relaxed">
+                Sin descripción disponible.
+              </p>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="pt-2 flex flex-wrap items-center gap-3">
+              <button
+                id="modal-fav-toggle-btn"
+                onclick="toggleFavoriteFromModal()"
+                class="px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white border border-gray-700"
+              >
+                <i class="fa-regular fa-heart text-rose-500"></i>
+                <span id="modal-fav-toggle-label">Añadir a Favoritos</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Top 5 Cast Section -->
+        <div class="border-t border-gray-800 pt-6 space-y-3">
+          <h4 class="text-sm font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+            <i class="fa-solid fa-users text-indigo-400"></i>
+            <span>Reparto Principal (Top 5)</span>
+          </h4>
+
+          <div id="modal-cast-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <!-- Cast cards injected dynamically -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= TOAST NOTIFICATION ================= -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 pointer-events-none space-y-2"></div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="bg-gray-950 border-t border-gray-800 py-6 mt-auto text-xs text-gray-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="text-brand-red font-bold">🎬 CineMatch AI</span>
+        <span>• Datos provistos por TMDB & Recomendaciones por Google Gemini</span>
+      </div>
+      <div class="text-center sm:text-right">
+        <span>Vanilla JS + Tailwind CDN + TMDB API + Gemini 1.5</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ================= APPLICATION SCRIPT ================= -->
+  <script>
+    /* ==========================================================================
+       1. CONFIGURACIÓN INICIAL Y CLAVES DE API
+       ========================================================================== */
+    const TMDB_API_KEY = "91124f23b8bf3978a2040438b5de2c13";
+    const GEMINI_API_KEY = "AQ.Ab8RN6JVa8JzknJqN319aXWVW32xC8X56W2-kROArQTeijA_9Q";
+
+    // Application state
+    let currentMovies = [];
+    let currentActiveTab = 'search';
+    let activeModalMovie = null;
+    let favorites = [];
+
+    // LocalStorage key
+    const FAVORITES_STORAGE_KEY = 'cinematch_favorites';
+
+    /* ==========================================================================
+       2. INICIALIZACIÓN DE LA APLICACIÓN
+       ========================================================================== */
+    document.addEventListener('DOMContentLoaded', () => {
+      loadFavoritesFromStorage();
+      setupSearchInputListeners();
+      loadTrendingMovies();
+
+      // Keyboard listener for Escape key to close modal
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeMovieModal();
+        }
+      });
+    });
+
+    /* ==========================================================================
+       3. GESTIÓN DE NAVEGACIÓN ENTRE PESTAÑAS
+       ========================================================================== */
+    function switchTab(tabId) {
+      currentActiveTab = tabId;
+      const tabs = ['search', 'favorites', 'recommender'];
+
+      tabs.forEach(tab => {
+        const btn = document.getElementById(`tab-btn-${tab}`);
+        const section = document.getElementById(`section-${tab}`);
+
+        if (tab === tabId) {
+          section.classList.remove('hidden');
+          btn.className = 'tab-btn active-tab flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-200 text-white bg-brand-red shadow';
+        } else {
+          section.classList.add('hidden');
+          btn.className = 'tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-200 text-gray-400 hover:text-white hover:bg-gray-700/50';
+        }
+      });
+
+      if (tabId === 'favorites') {
+        renderFavoritesGrid();
+      } else if (tabId === 'recommender') {
+        updateRecommenderContextInfo();
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ==========================================================================
+       4. BUSCADOR DE PELÍCULAS (TMDB API)
+       ========================================================================== */
+    function setupSearchInputListeners() {
+      const input = document.getElementById('search-input');
+      const clearBtn = document.getElementById('clear-search-btn');
+
+      input.addEventListener('input', () => {
+        if (input.value.trim().length > 0) {
+          clearBtn.classList.remove('hidden');
+        } else {
+          clearBtn.classList.add('hidden');
+        }
+      });
+    }
+
+    function clearSearchInput() {
+      const input = document.getElementById('search-input');
+      input.value = '';
+      document.getElementById('clear-search-btn').classList.add('hidden');
+      input.focus();
+    }
+
+    function quickSearch(query) {
+      document.getElementById('search-input').value = query;
+      document.getElementById('clear-search-btn').classList.remove('hidden');
+      performSearch(query);
+    }
+
+    async function handleSearch(e) {
+      e.preventDefault();
+      const input = document.getElementById('search-input');
+      const query = input.value.trim();
+
+      if (!query) {
+        showToast('Por favor, introduce el nombre de una película', 'warning');
+        input.focus();
+        return;
+      }
+
+      await performSearch(query);
+    }
+
+    async function performSearch(query) {
+      showLoadingState('Buscando películas en TMDB...');
+      document.getElementById('catalog-title').innerHTML = `<span>🔍 Resultados para: "${escapeHTML(query)}"</span>`;
+      document.getElementById('catalog-subtitle').innerText = 'Películas encontradas en la base de datos de TMDB';
+
+      try {
+        const url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=es-ES&page=1&include_adult=false`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Clave de API de TMDB inválida o no autorizada (Error 401). Verifica tu constante TMDB_API_KEY.');
+          }
+          throw new Error(`Error en el servidor de TMDB (Código ${response.status}).`);
+        }
+
+        const data = await response.json();
+        currentMovies = data.results || [];
+
+        if (currentMovies.length === 0) {
+          renderEmptySearchResults(query);
+        } else {
+          hideStatusMessage();
+          renderMoviesGrid(currentMovies, 'movies-grid');
+          showToast(`Se encontraron ${currentMovies.length} películas`, 'info');
+        }
+
+        updateRecommenderContextInfo();
+
+      } catch (err) {
+        console.error('Error al buscar películas:', err);
+        showErrorMessage(`No pudimos completar la búsqueda: ${err.message}`);
+      }
+    }
+
+    async function loadTrendingMovies() {
+      showLoadingState('Cargando películas en tendencia...');
+      document.getElementById('catalog-title').innerHTML = `<span>🔥 Tendencias y Populares</span>`;
+      document.getElementById('catalog-subtitle').innerText = 'Títulos destacados de la semana en la cartelera mundial';
+
+      try {
+        const url = `https://api.themoviedb.org/3/trending/movie/day?api_key=${TMDB_API_KEY}&language=es-ES`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Código ${response.status} de TMDB.`);
+        }
+
+        const data = await response.json();
+        currentMovies = data.results || [];
+        hideStatusMessage();
+        renderMoviesGrid(currentMovies, 'movies-grid');
+        updateRecommenderContextInfo();
+
+      } catch (err) {
+        console.error('Error al cargar tendencias:', err);
+        // Fallback to popular endpoint if trending fails
+        loadPopularFallback();
+      }
+    }
+
+    async function loadPopularFallback() {
+      try {
+        const url = `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_API_KEY}&language=es-ES&page=1`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Error al cargar populares.');
+        const data = await response.json();
+        currentMovies = data.results || [];
+        hideStatusMessage();
+        renderMoviesGrid(currentMovies, 'movies-grid');
+        updateRecommenderContextInfo();
+      } catch (e) {
+        showErrorMessage('No se pudieron cargar las películas de TMDB. Revisa tu conexión a internet o la clave de API.');
+      }
+    }
+
+    /* ==========================================================================
+       5. RENDERIZADO DE PELÍCULAS EN REJILLA
+       ========================================================================== */
+    function renderMoviesGrid(moviesList, containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      if (!moviesList || moviesList.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = moviesList.map(movie => {
+        const isFav = isMovieFavorite(movie.id);
+        const releaseYear = movie.release_date ? movie.release_date.split('-')[0] : 'N/D';
+        const rating = (movie.vote_average !== undefined && movie.vote_average !== null)
+          ? Number(movie.vote_average).toFixed(1)
+          : 'N/A';
+        const posterUrl = movie.poster_path
+          ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+          : null;
+
+        return `
+          <div class="group relative flex flex-col bg-gray-800 rounded-xl overflow-hidden border border-gray-700/70 hover:border-gray-500/80 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+            
+            <!-- Poster Wrapper -->
+            <div class="relative w-full aspect-poster bg-gray-950 overflow-hidden">
+              ${posterUrl
+                ? `<img
+                    src="${posterUrl}"
+                    alt="${escapeHTML(movie.title)}"
+                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                    onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gray-900 text-gray-500\\'><i class=\\'fa-solid fa-film text-3xl mb-2 text-gray-600\\'></i><span class=\\'text-xs font-semibold text-gray-400\\'>${escapeHTML(movie.title)}</span></div>';"
+                  />`
+                : `<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gray-900 text-gray-500">
+                    <i class="fa-solid fa-clapperboard text-3xl mb-2 text-gray-600"></i>
+                    <span class="text-xs font-semibold text-gray-400">${escapeHTML(movie.title)}</span>
+                    <span class="text-[10px] text-gray-600 mt-1">Sin póster</span>
+                   </div>`
+              }
+
+              <!-- Rating Badge -->
+              <div class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-gray-950/80 backdrop-blur-md border border-gray-700/60 text-xs font-bold text-amber-400 flex items-center gap-1 shadow-md">
+                <i class="fa-solid fa-star text-[10px] text-amber-400"></i>
+                <span>${rating}</span>
+              </div>
+
+              <!-- Favorite Button on Card -->
+              <button
+                onclick="handleFavoriteClick(event, ${movie.id})"
+                class="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-gray-950/80 backdrop-blur-md border border-gray-700/60 flex items-center justify-center transition-transform duration-150 hover:scale-110 active:scale-95 shadow-md ${isFav ? 'text-brand-red' : 'text-gray-400 hover:text-white'}"
+                title="${isFav ? 'Quitar de Favoritos' : 'Añadir a Favoritos'}"
+              >
+                <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart text-sm"></i>
+              </button>
+            </div>
+
+            <!-- Card Content -->
+            <div class="p-3.5 flex flex-col flex-grow justify-between gap-3 bg-gray-800">
+              <div>
+                <div class="flex items-center justify-between text-[11px] text-gray-400 mb-1">
+                  <span>${releaseYear}</span>
+                  <span>${rating !== 'N/A' ? '⭐ TMDB' : ''}</span>
+                </div>
+                <h3 class="font-bold text-white text-sm leading-snug line-clamp-2" title="${escapeHTML(movie.title)}">
+                  ${escapeHTML(movie.title)}
+                </h3>
+              </div>
+
+              <!-- Button: Ver Detalle & Tráiler -->
+              <button
+                onclick="openMovieModal(${movie.id})"
+                class="w-full py-2 px-3 rounded-lg bg-gray-700/70 hover:bg-brand-red text-gray-200 hover:text-white text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 shadow"
+              >
+                <i class="fa-solid fa-circle-play text-xs"></i>
+                <span>Ver Detalle & Tráiler</span>
+              </button>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderEmptySearchResults(query) {
+      const container = document.getElementById('movies-grid');
+      container.innerHTML = `
+        <div class="col-span-full py-16 text-center space-y-4">
+          <div class="w-16 h-16 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center mx-auto text-2xl text-gray-500">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </div>
+          <h3 class="text-xl font-bold text-white">No se encontraron resultados para "${escapeHTML(query)}"</h3>
+          <p class="text-sm text-gray-400 max-w-sm mx-auto">
+            Prueba a buscar con otra palabra clave o revisa la ortografía.
+          </p>
+          <button onclick="loadTrendingMovies()" class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-sm font-semibold text-white transition border border-gray-700">
+            Ver Tendencias
+          </button>
+        </div>
+      `;
+    }
+
+    function showLoadingState(msg = 'Cargando...') {
+      const container = document.getElementById('movies-grid');
+      container.innerHTML = `
+        <div class="col-span-full py-20 text-center space-y-3">
+          <div class="w-12 h-12 rounded-full border-4 border-gray-700 border-t-brand-red animate-spin mx-auto"></div>
+          <p class="text-sm text-gray-400">${escapeHTML(msg)}</p>
+        </div>
+      `;
+    }
+
+    function showErrorMessage(msg) {
+      const statusBox = document.getElementById('search-status-message');
+      statusBox.className = 'rounded-xl p-4 text-sm font-medium border bg-rose-950/40 border-rose-800/60 text-rose-300 block mb-6 animate-fade-in';
+      statusBox.innerHTML = `
+        <div class="flex items-start gap-3">
+          <i class="fa-solid fa-triangle-exclamation text-rose-400 text-base mt-0.5"></i>
+          <div>
+            <span class="font-bold">Aviso del Sistema:</span> ${escapeHTML(msg)}
+          </div>
+        </div>
+      `;
+      const container = document.getElementById('movies-grid');
+      container.innerHTML = '';
+    }
+
+    function hideStatusMessage() {
+      const statusBox = document.getElementById('search-status-message');
+      statusBox.classList.add('hidden');
+    }
+
+    /* ==========================================================================
+       6. MODAL DE DETALLES (REPARTO Y TRÁILER DE YOUTUBE)
+       ========================================================================== */
+    async function openMovieModal(movieId) {
+      const modal = document.getElementById('movie-modal');
+      const bodyScroll = document.getElementById('modal-body-scroll');
+      const trailerWrapper = document.getElementById('trailer-player-wrapper');
+      const castGrid = document.getElementById('modal-cast-grid');
+      const trailerLinkContainer = document.getElementById('trailer-link-container');
+
+      // Reset contents & show loader
+      modal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+      bodyScroll.scrollTop = 0;
+
+      document.getElementById('modal-movie-title').innerText = 'Cargando información...';
+      document.getElementById('modal-tagline').innerText = '';
+      document.getElementById('modal-overview').innerText = 'Cargando sinopsis y créditos...';
+      document.getElementById('modal-genres').innerHTML = '';
+      trailerLinkContainer.innerHTML = '';
+
+      trailerWrapper.innerHTML = `
+        <div class="flex flex-col items-center justify-center p-6 text-center space-y-2">
+          <div class="w-10 h-10 rounded-full border-4 border-gray-700 border-t-brand-red animate-spin"></div>
+          <span class="text-xs text-gray-400">Buscando tráiler oficial en YouTube...</span>
+        </div>
+      `;
+
+      castGrid.innerHTML = `
+        <div class="col-span-full py-4 text-center text-xs text-gray-500">
+          <i class="fa-solid fa-spinner animate-spin mr-1.5"></i> Cargando reparto principal...
+        </div>
+      `;
+
+      try {
+        // Fetch Movie Details, Credits and Videos in parallel
+        const [detailsRes, creditsRes, videosRes] = await Promise.all([
+          fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&language=es-ES`),
+          fetch(`https://api.themoviedb.org/3/movie/${movieId}/credits?api_key=${TMDB_API_KEY}&language=es-ES`),
+          fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}&language=es-ES`)
+        ]);
+
+        if (!detailsRes.ok) throw new Error('No se pudieron obtener los detalles de la película.');
+
+        const movieData = await detailsRes.json();
+        activeModalMovie = movieData;
+
+        // Populate basic info
+        document.getElementById('modal-movie-title').innerText = movieData.title || 'Detalles';
+        document.getElementById('modal-release-year').innerText = movieData.release_date ? movieData.release_date.split('-')[0] : 'N/D';
+        document.getElementById('modal-runtime').innerText = movieData.runtime ? `${movieData.runtime} min` : 'Duración N/D';
+        document.getElementById('modal-vote-score').innerText = movieData.vote_average ? Number(movieData.vote_average).toFixed(1) : 'N/A';
+        document.getElementById('modal-tagline').innerText = movieData.tagline ? `"${movieData.tagline}"` : '';
+        document.getElementById('modal-overview').innerText = movieData.overview || 'Sin descripción disponible en este idioma.';
+
+        // Poster
+        const posterEl = document.getElementById('modal-poster-img');
+        if (movieData.poster_path) {
+          posterEl.src = `https://image.tmdb.org/t/p/w500${movieData.poster_path}`;
+          posterEl.classList.remove('hidden');
+        } else {
+          posterEl.classList.add('hidden');
+        }
+
+        // Genres
+        const genresContainer = document.getElementById('modal-genres');
+        if (movieData.genres && movieData.genres.length > 0) {
+          genresContainer.innerHTML = movieData.genres.map(g => `
+            <span class="px-2 py-0.5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-medium border border-gray-700">
+              ${escapeHTML(g.name)}
+            </span>
+          `).join('');
+        } else {
+          genresContainer.innerHTML = '';
+        }
+
+        // Update modal favorite button state
+        updateModalFavoriteButtonState(movieData.id);
+
+        // Process Cast (top 5)
+        let castData = { cast: [] };
+        if (creditsRes.ok) {
+          castData = await creditsRes.json();
+        }
+        renderModalCast(castData.cast ? castData.cast.slice(0, 5) : []);
+
+        // Process Videos / Trailer
+        let videosData = { results: [] };
+        if (videosRes.ok) {
+          videosData = await videosRes.json();
+        }
+
+        let trailer = findOfficialTrailer(videosData.results);
+
+        // Fallback: If no trailer found in Spanish, query in default language (English/Global)
+        if (!trailer) {
+          const globalVideosRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}`);
+          if (globalVideosRes.ok) {
+            const globalVideos = await globalVideosRes.json();
+            trailer = findOfficialTrailer(globalVideos.results);
+          }
+        }
+
+        renderModalTrailer(trailer);
+
+      } catch (err) {
+        console.error('Error al abrir modal:', err);
+        showToast('Error al cargar detalles de la película', 'error');
+        document.getElementById('modal-overview').innerText = `Error: ${err.message}`;
+      }
+    }
+
+    function findOfficialTrailer(videos) {
+      if (!videos || videos.length === 0) return null;
+
+      // Prioritize Official YouTube Trailers
+      let candidate = videos.find(v => v.site === 'YouTube' && v.type === 'Trailer' && v.official);
+      if (!candidate) {
+        candidate = videos.find(v => v.site === 'YouTube' && v.type === 'Trailer');
+      }
+      if (!candidate) {
+        candidate = videos.find(v => v.site === 'YouTube' && (v.type === 'Teaser' || v.type === 'Clip'));
+      }
+      return candidate || null;
+    }
+
+    function renderModalTrailer(trailer) {
+      const trailerWrapper = document.getElementById('trailer-player-wrapper');
+      const trailerLinkContainer = document.getElementById('trailer-link-container');
+
+      if (trailer && trailer.key) {
+        const embedUrl = `https://www.youtube.com/embed/${trailer.key}?rel=0&showinfo=0&autoplay=0`;
+        const directUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
+
+        trailerWrapper.innerHTML = `
+          <iframe
+            src="${embedUrl}"
+            title="${escapeHTML(trailer.name || 'Tráiler oficial')}"
+            class="w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          ></iframe>
+        `;
+
+        trailerLinkContainer.innerHTML = `
+          <a
+            href="${directUrl}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs text-red-400 hover:text-red-300 font-semibold flex items-center gap-1.5 transition"
+          >
+            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+            <span>Ver en YouTube</span>
+          </a>
+        `;
+      } else {
+        trailerWrapper.innerHTML = `
+          <div class="flex flex-col items-center justify-center p-8 text-center space-y-3 bg-gray-950 text-gray-400">
+            <div class="w-12 h-12 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-500 text-xl">
+              <i class="fa-brands fa-youtube"></i>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-300">No hay tráiler oficial disponible en YouTube</p>
+              <p class="text-xs text-gray-500 mt-1">Este título no cuenta con video enlazado en los registros de TMDB.</p>
+            </div>
+          </div>
+        `;
+        trailerLinkContainer.innerHTML = '';
+      }
+    }
+
+    function renderModalCast(topActors) {
+      const castGrid = document.getElementById('modal-cast-grid');
+      if (!topActors || topActors.length === 0) {
+        castGrid.innerHTML = `
+          <div class="col-span-full py-3 text-center text-xs text-gray-500">
+            No se encontró información del reparto para esta película.
+          </div>
+        `;
+        return;
+      }
+
+      castGrid.innerHTML = topActors.map(actor => {
+        const photoUrl = actor.profile_path
+          ? `https://image.tmdb.org/t/p/w185${actor.profile_path}`
+          : null;
+
+        return `
+          <div class="flex flex-col items-center text-center p-2.5 rounded-xl bg-gray-950/70 border border-gray-800">
+            <div class="w-14 h-14 rounded-full overflow-hidden bg-gray-800 mb-2 border border-gray-700 shadow-inner flex items-center justify-center">
+              ${photoUrl
+                ? `<img src="${photoUrl}" alt="${escapeHTML(actor.name)}" class="w-full h-full object-cover" onerror="this.onerror=null;this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-500\\'></i>';" />`
+                : `<i class="fa-solid fa-user text-gray-500 text-lg"></i>`
+              }
+            </div>
+            <span class="text-xs font-bold text-gray-200 line-clamp-1" title="${escapeHTML(actor.name)}">${escapeHTML(actor.name)}</span>
+            <span class="text-[10px] text-gray-400 line-clamp-1 mt-0.5" title="${escapeHTML(actor.character || 'Personaje')}">${escapeHTML(actor.character || 'Reparto')}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function closeMovieModal() {
+      const modal = document.getElementById('movie-modal');
+      const trailerWrapper = document.getElementById('trailer-player-wrapper');
+
+      // Stop any playing iframe
+      trailerWrapper.innerHTML = '';
+      modal.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+      activeModalMovie = null;
+    }
+
+    function handleModalBackdropClick(e) {
+      if (e.target.id === 'movie-modal') {
+        closeMovieModal();
+      }
+    }
+
+    function updateModalFavoriteButtonState(movieId) {
+      const btn = document.getElementById('modal-fav-toggle-btn');
+      const label = document.getElementById('modal-fav-toggle-label');
+      const isFav = isMovieFavorite(movieId);
+
+      if (isFav) {
+        btn.className = 'px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-2 bg-brand-red/20 text-brand-red border border-brand-red/50 hover:bg-brand-red hover:text-white';
+        btn.innerHTML = `<i class="fa-solid fa-heart text-brand-red"></i><span id="modal-fav-toggle-label">En tus Favoritos (Quitar)</span>`;
+      } else {
+        btn.className = 'px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white border border-gray-700';
+        btn.innerHTML = `<i class="fa-regular fa-heart text-rose-500"></i><span id="modal-fav-toggle-label">Añadir a Favoritos</span>`;
+      }
+    }
+
+    function toggleFavoriteFromModal() {
+      if (!activeModalMovie) return;
+      toggleFavorite(activeModalMovie);
+      updateModalFavoriteButtonState(activeModalMovie.id);
+      refreshActiveGrids();
+    }
+
+    /* ==========================================================================
+       7. GESTIÓN DE FAVORITOS (LOCALSTORAGE)
+       ========================================================================== */
+    function loadFavoritesFromStorage() {
+      try {
+        const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
+        favorites = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(favorites)) favorites = [];
+      } catch (e) {
+        console.error('Error al leer favoritos de localStorage:', e);
+        favorites = [];
+      }
+      updateFavoritesCounter();
+    }
+
+    function saveFavoritesToStorage() {
+      try {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      } catch (e) {
+        console.error('Error al guardar en localStorage:', e);
+      }
+      updateFavoritesCounter();
+    }
+
+    function isMovieFavorite(movieId) {
+      return favorites.some(fav => fav.id === movieId);
+    }
+
+    function handleFavoriteClick(event, movieId) {
+      event.stopPropagation();
+      // Find movie in current list or favorites
+      let movie = currentMovies.find(m => m.id === movieId);
+      if (!movie) {
+        movie = favorites.find(m => m.id === movieId);
+      }
+      if (!movie) return;
+
+      toggleFavorite(movie);
+      refreshActiveGrids();
+    }
+
+    function toggleFavorite(movie) {
+      const index = favorites.findIndex(f => f.id === movie.id);
+      if (index >= 0) {
+        favorites.splice(index, 1);
+        saveFavoritesToStorage();
+        showToast(`"${movie.title}" eliminada de tus favoritos`, 'info');
+      } else {
+        // Store minimal clean object
+        favorites.push({
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+          overview: movie.overview
+        });
+        saveFavoritesToStorage();
+        showToast(`"${movie.title}" añadida a tus favoritos ❤️`, 'success');
+      }
+    }
+
+    function updateFavoritesCounter() {
+      const count = favorites.length;
+      document.getElementById('favorites-badge').innerText = count;
+      document.getElementById('favorites-count-pill').innerText = `${count} ${count === 1 ? 'guardada' : 'guardadas'}`;
+
+      const clearBtn = document.getElementById('clear-all-favs-btn');
+      if (count > 0) {
+        clearBtn.classList.remove('hidden');
+        clearBtn.classList.add('inline-flex');
+      } else {
+        clearBtn.classList.add('hidden');
+        clearBtn.classList.remove('inline-flex');
+      }
+    }
+
+    function renderFavoritesGrid() {
+      const grid = document.getElementById('favorites-grid');
+      const emptyState = document.getElementById('favorites-empty-state');
+
+      if (favorites.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+        renderMoviesGrid(favorites, 'favorites-grid');
+      }
+    }
+
+    function confirmClearAllFavorites() {
+      if (favorites.length === 0) return;
+      if (confirm('¿Estás seguro de que deseas eliminar todas las películas de tu lista de favoritos?')) {
+        favorites = [];
+        saveFavoritesToStorage();
+        renderFavoritesGrid();
+        refreshActiveGrids();
+        showToast('Lista de favoritos vaciada correctamente', 'info');
+      }
+    }
+
+    function refreshActiveGrids() {
+      if (currentActiveTab === 'search') {
+        renderMoviesGrid(currentMovies, 'movies-grid');
+      } else if (currentActiveTab === 'favorites') {
+        renderFavoritesGrid();
+      }
+    }
+
+    /* ==========================================================================
+       8. INTEGRACIÓN CON GEMINI AI ("¿Qué debería ver hoy?")
+       ========================================================================== */
+    function setMoodText(text) {
+      const textarea = document.getElementById('ai-mood-input');
+      textarea.value = text;
+      textarea.focus();
+    }
+
+    function updateRecommenderContextInfo() {
+      const countLabel = document.getElementById('ai-context-count');
+      const availableCount = currentMovies.length > 0 ? currentMovies.length : favorites.length;
+      if (countLabel) {
+        countLabel.innerText = `Analizando el catálogo actual (${availableCount} películas)`;
+      }
+    }
+
+    async function analyzeWithGemini() {
+      const moodInput = document.getElementById('ai-mood-input');
+      const userMood = moodInput.value.trim();
+
+      if (!userMood) {
+        showToast('Por favor, describe cómo te sientes o qué buscas ver hoy', 'warning');
+        moodInput.focus();
+        return;
+      }
+
+      // Determine which movies to feed to Gemini
+      let poolOfMovies = currentMovies;
+      if (!poolOfMovies || poolOfMovies.length === 0) {
+        poolOfMovies = favorites;
+      }
+
+      if (!poolOfMovies || poolOfMovies.length === 0) {
+        showToast('No hay películas en el catálogo para analizar. Haz una búsqueda primero o carga las tendencias.', 'warning');
+        switchTab('search');
+        return;
+      }
+
+      // Prepare payload of movies with title, release year, rating, and brief overview
+      const moviesSummary = poolOfMovies.slice(0, 18).map((m, idx) => {
+        const year = m.release_date ? m.release_date.split('-')[0] : 'N/D';
+        const rating = m.vote_average ? Number(m.vote_average).toFixed(1) : 'N/A';
+        const cleanOverview = m.overview ? m.overview.slice(0, 180) + '...' : 'Sin sinopsis disponible.';
+        return `${idx + 1}. "${m.title}" (${year}) - Puntuación TMDB: ${rating}/10. Sinopsis: ${cleanOverview}`;
+      }).join('\n');
+
+      const systemPrompt = `
+Actúa como un crítico de cine experto, apasionado, sumamente amable y empático.
+El usuario te describe cómo se siente o qué experiencia cinematográfica desea tener hoy:
+"${userMood}"
+
+Aquí tienes la lista actual de películas disponibles:
+${moviesSummary}
+
+Instrucciones para tu recomendación:
+1. Analiza cuidadosamente la lista de películas y el estado de ánimo o deseo del usuario.
+2. Elige la MEJOR opción cinematográfica de la lista para este momento exacto.
+3. Escribe un párrafo fluido, cercano y elocuente donde le expliques por qué esa película es perfecta para su estado de ánimo hoy, qué emociones le va a despertar y por qué merece su tiempo.
+4. Si hay una segunda opción complementaria muy destacable de la lista, menciónala brevemente en una frase final como alternativa de reserva.
+5. Responde en un tono cálido y cinematográfico en español. No uses listas con viñetas; redacta tu análisis como una crítica personalizada y reconfortante.
+`.trim();
+
+      // UI Loading state
+      const loadingEl = document.getElementById('ai-loading');
+      const resultCard = document.getElementById('ai-result-card');
+      const analyzeBtn = document.getElementById('ai-analyze-btn');
+
+      loadingEl.classList.remove('hidden');
+      resultCard.classList.add('hidden');
+      analyzeBtn.disabled = true;
+      analyzeBtn.classList.add('opacity-60', 'cursor-not-allowed');
+
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        
+        const requestBody = {
+          contents: [
+            {
+              parts: [
+                {
+                  text: systemPrompt
+                }
+              ]
+            }
+          ]
+        };
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMsg = errorData.error?.message || `Error HTTP ${response.status}`;
+          throw new Error(errorMsg);
+        }
+
+        const data = await response.json();
+        const candidate = data.candidates?.[0];
+        const replyText = candidate?.content?.parts?.[0]?.text;
+
+        if (!replyText) {
+          throw new Error('Gemini no generó ninguna respuesta válida.');
+        }
+
+        // Render AI Recommendation
+        displayAiRecommendation(replyText, poolOfMovies);
+        showToast('¡Recomendación de Gemini lista!', 'success');
+
+      } catch (err) {
+        console.error('Error al consultar Gemini:', err);
+        showToast(`Fallo con Gemini AI: ${err.message}`, 'error');
+        displayAiError(err.message);
+      } finally {
+        loadingEl.classList.add('hidden');
+        analyzeBtn.disabled = false;
+        analyzeBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    function displayAiRecommendation(aiText, poolOfMovies) {
+      const resultCard = document.getElementById('ai-result-card');
+      const responseTextEl = document.getElementById('ai-response-text');
+      const recommendedBox = document.getElementById('ai-recommended-movie-box');
+
+      // Format line breaks
+      const formattedParagraphs = aiText
+        .split('\n\n')
+        .map(p => p.trim())
+        .filter(Boolean)
+        .map(p => `<p class="leading-relaxed text-gray-200">${escapeHTML(p)}</p>`)
+        .join('');
+
+      responseTextEl.innerHTML = formattedParagraphs;
+
+      // Try to find if one of the movie titles from pool was mentioned in the recommendation
+      const foundMovie = poolOfMovies.find(m => {
+        const lowerTitle = m.title.toLowerCase();
+        return aiText.toLowerCase().includes(lowerTitle);
+      });
+
+      if (foundMovie) {
+        const posterUrl = foundMovie.poster_path ? `https://image.tmdb.org/t/p/w200${foundMovie.poster_path}` : null;
+        const year = foundMovie.release_date ? foundMovie.release_date.split('-')[0] : '';
+        const rating = foundMovie.vote_average ? Number(foundMovie.vote_average).toFixed(1) : '';
+
+        recommendedBox.innerHTML = `
+          <div class="w-16 h-24 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0 border border-gray-700">
+            ${posterUrl
+              ? `<img src="${posterUrl}" alt="${escapeHTML(foundMovie.title)}" class="w-full h-full object-cover" />`
+              : `<div class="w-full h-full flex items-center justify-center text-xs text-gray-500">🎬</div>`
+            }
+          </div>
+          <div class="flex-grow text-center sm:text-left">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-400">Película recomendada</span>
+            <h4 class="text-base font-bold text-white">${escapeHTML(foundMovie.title)} <span class="text-xs font-normal text-gray-400">(${year})</span></h4>
+            <p class="text-xs text-amber-400 font-semibold mt-0.5">⭐ ${rating} en TMDB</p>
+          </div>
+          <button
+            onclick="openMovieModal(${foundMovie.id})"
+            class="px-4 py-2 rounded-xl bg-brand-red hover:bg-brand-hoverRed text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-brand-red/30 cursor-pointer"
+          >
+            <i class="fa-solid fa-play text-[10px]"></i>
+            <span>Ver Tráiler & Detalle</span>
+          </button>
+        `;
+        recommendedBox.classList.remove('hidden');
+      } else {
+        recommendedBox.classList.add('hidden');
+      }
+
+      resultCard.classList.remove('hidden');
+      resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function displayAiError(errorMessage) {
+      const resultCard = document.getElementById('ai-result-card');
+      const responseTextEl = document.getElementById('ai-response-text');
+      const recommendedBox = document.getElementById('ai-recommended-movie-box');
+
+      recommendedBox.classList.add('hidden');
+      responseTextEl.innerHTML = `
+        <div class="p-4 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 space-y-2">
+          <p class="font-bold flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>No pudimos conectar con la API de Gemini</span>
+          </p>
+          <p class="text-sm text-gray-300">
+            Detalle del error: <code class="text-xs bg-gray-900 px-2 py-1 rounded text-rose-300">${escapeHTML(errorMessage)}</code>
+          </p>
+          <p class="text-xs text-gray-400">
+            Asegúrate de que la clave <code>GEMINI_API_KEY</code> tenga los permisos necesarios o cuente con cuota disponible.
+          </p>
+        </div>
+      `;
+      resultCard.classList.remove('hidden');
+    }
+
+    /* ==========================================================================
+       9. SISTEMA DE NOTIFICACIONES TOAST Y UTILIDADES
+       ========================================================================== */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      const icons = {
+        success: '<i class="fa-solid fa-circle-check text-emerald-400"></i>',
+        error: '<i class="fa-solid fa-circle-xmark text-rose-400"></i>',
+        warning: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i>',
+        info: '<i class="fa-solid fa-circle-info text-sky-400"></i>'
+      };
+
+      const borderColors = {
+        success: 'border-emerald-500/40',
+        error: 'border-rose-500/40',
+        warning: 'border-amber-500/40',
+        info: 'border-sky-500/40'
+      };
+
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-900/95 text-white text-xs sm:text-sm font-medium border ${borderColors[type] || 'border-gray-700'} shadow-2xl backdrop-blur-md animate-fade-in transition-all duration-300`;
+      toast.innerHTML = `
+        <div class="text-base">${icons[type] || icons.info}</div>
+        <div class="flex-grow">${escapeHTML(message)}</div>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
